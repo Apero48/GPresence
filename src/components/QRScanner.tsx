@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import EmployeeConfirmation from "./EmployeeConfirmation";
 import { Html5Qrcode } from "html5-qrcode";
 
-export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentView: (view: 'dashboard' | 'employee' | 'scanner' | 'confirmation') => void; setAttendanceRecord: (record: any) => void; }) {
+export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentView: (view: 'dashboard' | 'employee' | 'scanner' | 'confirmation' | 'personnel') => void; setAttendanceRecord: (record: any) => void; }) {
   const [isScanning, setIsScanning] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<string>("");
@@ -143,7 +143,7 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
         location: undefined,
         onDone: () => {
           setShowConfirmation(false);
-          setCurrentView('employee');
+          setCurrentView('personnel');
         },
         offline: true,
       });
@@ -164,7 +164,7 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
         location: attendance?.location ? { lat: attendance.location.latitude, lng: attendance.location.longitude } : undefined,
         onDone: () => {
           setShowConfirmation(false);
-          setCurrentView('employee');
+          setCurrentView('personnel');
         },
       });
     } catch (error) {
