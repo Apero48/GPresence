@@ -6,22 +6,21 @@ import EmployeeConfirmation from "./EmployeeConfirmation";
 import { Html5Qrcode } from "html5-qrcode";
 
 export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentView: (view: 'dashboard' | 'employee' | 'scanner' | 'confirmation') => void; setAttendanceRecord: (record: any) => void; }) {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [scanResult, setScanResult] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationProps, setConfirmationProps] = useState<any>(null);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerId = "qr-scanner-html5";
+  const scannerContainerRef = useRef<HTMLDivElement>(null);
 
   const recordAttendance = useMutation(api.attendance.recordAttendance);
 
-  // Démarre la caméra et ouvre la modale
+  // Démarre la caméra et le scanner
   const startQRScanner = async () => {
     setStatus("");
-    setScanResult(null);
-    setModalOpen(true);
+    setIsScanning(true);
   };
 
   // Arrête la caméra et le scanner QR
@@ -33,65 +32,70 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
         html5QrCodeRef.current = null;
       })();
     }
-    setModalOpen(false);
+    setIsScanning(false);
   };
 
-  // Initialisation du scanner QR quand la modale s'ouvre
+  // Initialisation du scanner QR
   useEffect(() => {
-    if (modalOpen && !showConfirmation) {
-      const config = { fps: 10, qrbox: 250, aspectRatio: 1.0 };
-      const qrCodeSuccessCallback = (decodedText: string) => {
-        if (!isProcessing && html5QrCodeRef.current) {
-          // Stoppe le scanner immédiatement
-          html5QrCodeRef.current.stop().then(() => {
-            html5QrCodeRef.current?.clear();
-            html5QrCodeRef.current = null;
-            setModalOpen(false); // ferme la modale après avoir affiché la confirmation
-            setScanResult(decodedText);
-            onScan(decodedText); // La suite (confirmation) est gérée dans onScan
-          });
-        }
-      };
-      const qrCodeErrorCallback = (error: any) => {
-        // Ignore les erreurs de décodage
-      };
+    if (!isScanning) return;
+
+    const qrCodeSuccessCallback = (decodedText: string) => {
+      if (!isProcessing && html5QrCodeRef.current) {
+        stopQRScanner();
+        onScan(decodedText);
+      }
+    };
+
+    const qrCodeErrorCallback = (error: any) => {
+      // Ignore les erreurs de décodage
+    };
+
+    const initializeScanner = async () => {
       try {
+        // Calculer la taille du conteneur
+        const container = scannerContainerRef.current;
+        if (!container) return;
+        
+        const size = Math.min(container.offsetWidth - 40, 400); // Taille maximale de 400px
+        
         html5QrCodeRef.current = new Html5Qrcode(scannerId);
-        html5QrCodeRef.current.start(
+        
+        await html5QrCodeRef.current.start(
           { facingMode: "environment" },
-          config,
+          { 
+            fps: 10, 
+            qrbox: { width: size, height: size },
+            aspectRatio: 1.0 
+          },
           qrCodeSuccessCallback,
           qrCodeErrorCallback
         );
+        
         setStatus("");
       } catch (e) {
-        // Ajout : message Lockdown
         let msg = "❌ Impossible d'accéder à la caméra : ";
         if (typeof e === "object" && e && "message" in e) {
           msg += e.message;
         } else {
           msg += String(e);
         }
-        // Détection Lockdown (Safari iOS)
+        
         if (navigator.userAgent.includes("iPhone") || navigator.userAgent.includes("iPad")) {
           msg +=
             "\n\n🔒 Il semble que le mode Lockdown (Isolement) d'iOS soit activé. Ce mode bloque l'accès à la caméra pour toutes les applications web.\n" +
             "Pour utiliser le scan QR, désactivez temporairement le mode Lockdown dans Réglages > Confidentialité et sécurité > Mode Isolement.";
         }
         setStatus(msg);
-      }
-    }
-    return () => {
-      if (html5QrCodeRef.current) {
-        (async () => {
-          try { await html5QrCodeRef.current!.stop(); } catch {}
-          try { await html5QrCodeRef.current!.clear(); } catch {}
-          html5QrCodeRef.current = null;
-        })();
+        setIsScanning(false);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalOpen, showConfirmation]);
+
+    initializeScanner();
+
+    return () => {
+      stopQRScanner();
+    };
+  }, [isScanning]);
 
   // Ajout : synchronisation hors-ligne à la reconnexion
   useEffect(() => {
@@ -171,210 +175,54 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-      {/* Loader animé avant le scan */}
-      {!modalOpen && !showConfirmation && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-gray-100 bg-opacity-95">
-          <button className="loader-wrapper" onClick={startQRScanner} style={{ border: 'none', background: 'transparent', boxShadow: 'none', padding: 0, cursor: 'pointer' }}>
-            <div className="loader"></div>
-            <span className="loader-text">Démarrer</span>
-            <style>{`
-              .loader-wrapper {
-                position: relative;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 220px;
-                height: 220px;
-                font-family: 'Inter', sans-serif;
-                border-radius: 50%;
-                background-color: transparent;
-                user-select: none;
-                border: none;
-                box-shadow: 0 8px 32px 0 #ad5fff22;
-                transition: box-shadow 0.2s;
-                overflow: hidden;
-              }
-              .loader-wrapper:active {
-                box-shadow: 0 2px 8px 0 #ad5fff44;
-              }
-              .loader {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                aspect-ratio: 1 / 1;
-                border-radius: 50%;
-                background-color: transparent;
-                animation: loader-rotate 2s linear infinite;
-                z-index: 0;
-              }
-              @keyframes loader-rotate {
-                0% {
-                  transform: rotate(90deg);
-                  box-shadow:
-                    0 10px 20px 0 #fff inset,
-                    0 20px 30px 0 #ad5fff inset,
-                    0 60px 60px 0 #471eec inset;
-                }
-                50% {
-                  transform: rotate(270deg);
-                  box-shadow:
-                    0 10px 20px 0 #fff inset,
-                    0 20px 10px 0 #d60a47 inset,
-                    0 40px 60px 0 #311e80 inset;
-                }
-                100% {
-                  transform: rotate(450deg);
-                  box-shadow:
-                    0 10px 20px 0 #fff inset,
-                    0 20px 30px 0 #ad5fff inset,
-                    0 60px 60px 0 #471eec inset;
-                }
-              }
-              .loader-text {
-                position: relative;
-                z-index: 1;
-                font-size: 2.1rem;
-                font-weight: 700;
-                color: #222;
-                text-align: center;
-                letter-spacing: 0.01em;
-                width: 100%;
-                line-height: 1.1;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                height: 100%;
-              }
-            `}</style>
+    <div className="flex flex-col items-center justify-start min-h-screen bg-white p-4 pt-8">
+      {!isScanning && !showConfirmation && (
+        <div className="flex flex-col items-center justify-center flex-1 w-full max-w-md mx-auto">
+          <button 
+            onClick={startQRScanner}
+            className="relative w-64 h-64 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white 
+                     flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            <div className="absolute inset-0 rounded-full border-4 border-white/20 animate-pulse"></div>
+            <span className="text-2xl font-bold">Scanner un QR Code</span>
           </button>
+          
+          <p className="mt-8 text-center text-gray-600">
+            Appuyez sur le bouton pour lancer le scan d'un QR code de pointage
+          </p>
         </div>
       )}
-      {/* Modale plein écran pour le scan */}
-      {modalOpen && !showConfirmation && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-90">
-          <div className="relative w-full max-w-md mx-auto flex flex-col items-center">
-            {/* Loader animé moderne */}
-            <div className="loader-wrapper mb-6">
-              <div className="loader"></div>
-              {"Démarrer le scan".split("").map((l, i) => (
-                <span className="loader-letter" key={i}>{l === ' ' ? '\u00A0' : l}</span>
-              ))}
+
+      {isScanning && !showConfirmation && (
+        <div className="w-full max-w-md mx-auto flex flex-col items-center">
+          <div className="w-full relative" ref={scannerContainerRef}>
+            <div id={scannerId} className="w-full rounded-lg overflow-hidden bg-black" 
+                 style={{ aspectRatio: '1/1', maxHeight: '80vh' }} />
+            
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="border-4 border-green-400 rounded-lg w-4/5 h-4/5 animate-pulse"></div>
             </div>
-            {/* Zone d'affichage du scanner QR */}
-            <div id={scannerId} className="w-full h-80 bg-black rounded-lg border-4 border-blue-500 flex items-center justify-center" />
-            {/* Cadre visuel pour aligner le QR code */}
-            <div className="absolute top-1/2 left-1/2 w-48 h-48 -translate-x-1/2 -translate-y-1/2 border-4 border-green-400 rounded-lg pointer-events-none animate-pulse" />
-            {/* Bouton pour fermer */}
+            
             <button
-              className="absolute top-4 right-4 text-white text-2xl bg-black bg-opacity-40 rounded-full p-2 hover:bg-opacity-70"
+              className="absolute top-4 right-4 bg-black/50 text-white rounded-full p-2 hover:bg-black/70 transition-colors"
               onClick={stopQRScanner}
             >
-              ✕
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
-            {/* Statut et confirmation */}
-            <div className="mt-6 text-center text-white text-lg min-h-[2em]">
-              {status || "Alignez le QR code dans le cadre"}
-            </div>
-            <style>{`
-              .loader-wrapper {
-                position: relative;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 180px;
-                height: 180px;
-                font-family: 'Inter', sans-serif;
-                font-size: 1.2em;
-                font-weight: 300;
-                color: white;
-                border-radius: 50%;
-                background-color: transparent;
-                user-select: none;
-              }
-              .loader {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                aspect-ratio: 1 / 1;
-                border-radius: 50%;
-                background-color: transparent;
-                animation: loader-rotate 2s linear infinite;
-                z-index: 0;
-              }
-              @keyframes loader-rotate {
-                0% {
-                  transform: rotate(90deg);
-                  box-shadow:
-                    0 10px 20px 0 #fff inset,
-                    0 20px 30px 0 #ad5fff inset,
-                    0 60px 60px 0 #471eec inset;
-                }
-                50% {
-                  transform: rotate(270deg);
-                  box-shadow:
-                    0 10px 20px 0 #fff inset,
-                    0 20px 10px 0 #d60a47 inset,
-                    0 40px 60px 0 #311e80 inset;
-                }
-                100% {
-                  transform: rotate(450deg);
-                  box-shadow:
-                    0 10px 20px 0 #fff inset,
-                    0 20px 30px 0 #ad5fff inset,
-                    0 60px 60px 0 #471eec inset;
-                }
-              }
-              .loader-letter {
-                display: inline-block;
-                opacity: 0.4;
-                transform: translateY(0);
-                animation: loader-letter-anim 2s infinite;
-                z-index: 1;
-                border-radius: 50ch;
-                border: none;
-              }
-              .loader-letter:nth-child(1) { animation-delay: 0s; }
-              .loader-letter:nth-child(2) { animation-delay: 0.1s; }
-              .loader-letter:nth-child(3) { animation-delay: 0.2s; }
-              .loader-letter:nth-child(4) { animation-delay: 0.3s; }
-              .loader-letter:nth-child(5) { animation-delay: 0.4s; }
-              .loader-letter:nth-child(6) { animation-delay: 0.5s; }
-              .loader-letter:nth-child(7) { animation-delay: 0.6s; }
-              .loader-letter:nth-child(8) { animation-delay: 0.7s; }
-              .loader-letter:nth-child(9) { animation-delay: 0.8s; }
-              .loader-letter:nth-child(10) { animation-delay: 0.9s; }
-              .loader-letter:nth-child(11) { animation-delay: 1.0s; }
-              .loader-letter:nth-child(12) { animation-delay: 1.1s; }
-              .loader-letter:nth-child(13) { animation-delay: 1.2s; }
-              .loader-letter:nth-child(14) { animation-delay: 1.3s; }
-              .loader-letter:nth-child(15) { animation-delay: 1.4s; }
-              .loader-letter:nth-child(16) { animation-delay: 1.5s; }
-              .loader-letter:nth-child(17) { animation-delay: 1.6s; }
-              .loader-letter:nth-child(18) { animation-delay: 1.7s; }
-              .loader-letter:nth-child(19) { animation-delay: 1.8s; }
-              @keyframes loader-letter-anim {
-                0%, 100% {
-                  opacity: 0.4;
-                  transform: translateY(0);
-                }
-                20% {
-                  opacity: 1;
-                  transform: scale(1.15);
-                }
-                40% {
-                  opacity: 0.7;
-                  transform: translateY(0);
-                }
-              }
-            `}</style>
           </div>
+          
+          <p className="mt-4 text-center text-gray-700">
+            {status || "Scannez le QR code dans le cadre"}
+          </p>
         </div>
       )}
+      
       {showConfirmation && confirmationProps && (
-        <EmployeeConfirmation {...confirmationProps} />
+        <div className="w-full max-w-md mx-auto">
+          <EmployeeConfirmation {...confirmationProps} />
+        </div>
       )}
     </div>
   );

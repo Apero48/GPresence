@@ -1,4 +1,3 @@
-
 import { motion } from "framer-motion";
 
 interface BottomNavBarProps {
@@ -9,95 +8,86 @@ interface BottomNavBarProps {
 
 const navVariants = {
   initial: { y: 80, opacity: 0 },
-  animate: { y: 0, opacity: 1, transition: { type: "spring" as const, stiffness: 200, damping: 20 } },
+  animate: { 
+    y: 0, 
+    opacity: 1, 
+    transition: { 
+      type: "spring", 
+      stiffness: 200, 
+      damping: 20 
+    } 
+  },
 };
 
 export default function ModernBottomNavBar({ role, currentView, setCurrentView }: BottomNavBarProps) {
   const adminNav = [
-    { key: 'dashboard', icon: <span className="text-2xl">📊</span>, label: 'Tableau de bord' },
-    { key: 'employes', icon: <span className="text-2xl">👥</span>, label: 'Employés' },
-    { key: 'qrcode', icon: <span className="text-2xl">📱</span>, label: 'QR Code', isCenter: true },
-    { key: 'personnel', icon: <span className="text-2xl">👤</span>, label: 'Personnel' },
+    { key: 'dashboard', icon: '📊', label: 'Tableau' },
+    { key: 'employes', icon: '👥', label: 'Employés' },
+    { key: 'qrcode', icon: '📱', label: 'QR Code', isCenter: true },
+    { key: 'personnel', icon: '👤', label: 'Personnel' },
+    { key: 'history', icon: '📋', label: 'Historique' },
   ];
+  
   const employeeNav = [
-    { key: 'dashboard', icon: <span className="text-2xl">📊</span>, label: 'Dashboard' },
-    { key: 'scanner', icon: <span className="text-2xl">📱</span>, label: 'Scanner', isCenter: true },
-    { key: 'history', icon: <span className="text-2xl">📋</span>, label: 'Historique' },
+    { key: 'dashboard', icon: '📊', label: 'Accueil' },
+    { key: 'scanner', icon: '📱', label: 'Scanner', isCenter: true },
+    { key: 'history', icon: '📋', label: 'Historique' },
   ];
+  
   const navItems = role === 'admin' ? adminNav : employeeNav;
 
   return (
-    <motion.nav
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50"
+    <motion.div
+      className="w-full bg-white border-t border-gray-200"
       variants={navVariants}
       initial="initial"
       animate="animate"
     >
-      <div className="button-container-navbar">
-        {navItems.map((item) => (
-          <motion.button
-            key={item.key}
-            whileTap={{ scale: 0.92 }}
-            whileHover={{ scale: 1.12 }}
-            className={`button-navbar ${item.isCenter ? 'button-navbar-center' : ''} ${currentView === item.key ? 'button-navbar-active' : ''}`}
-            onClick={() => setCurrentView(item.key)}
-            title={item.label}
-          >
-            <span className="icon-navbar">{item.icon}</span>
-          </motion.button>
-        ))}
+      <div className="max-w-md mx-auto px-2">
+        <div className="flex justify-between items-center h-16">
+          {navItems.map((item) => (
+            <motion.button
+              key={item.key}
+              whileTap={{ scale: 0.95 }}
+              className={`relative flex flex-col items-center justify-center h-full px-2 w-full ${
+                currentView === item.key ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              } ${item.isCenter ? 'flex-[1.5]' : 'flex-1'}`}
+              onClick={() => setCurrentView(item.key)}
+              aria-label={item.label}
+            >
+              {item.isCenter && (
+                <motion.span 
+                  className="absolute -top-6 w-14 h-14 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white flex items-center justify-center text-2xl shadow-lg"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {item.icon}
+                </motion.span>
+              )}
+              
+              {!item.isCenter && (
+                <span className="text-2xl mb-1">{item.icon}</span>
+              )}
+              
+              <span className={`text-xs font-medium ${currentView === item.key ? 'text-blue-600' : 'text-gray-600'}`}>
+                {item.label}
+              </span>
+              
+              {currentView === item.key && (
+                <motion.div 
+                  className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500 rounded-t-full"
+                  layoutId="activeNav"
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 30
+                  }}
+                />
+              )}
+            </motion.button>
+          ))}
+        </div>
       </div>
-      <style>{`
-        .button-container-navbar {
-          display: flex;
-          background: linear-gradient(90deg, #4f8cff 60%, #7c3aed 100%);
-          width: 270px;
-          height: 56px;
-          align-items: center;
-          justify-content: space-around;
-          border-radius: 16px;
-          box-shadow: rgba(0,0,0,0.18) 0px 5px 15px, rgba(76, 110, 245, 0.25) 5px 10px 15px;
-          padding: 0 10px;
-        }
-        .button-navbar {
-          outline: 0 !important;
-          border: 0 !important;
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          background: transparent;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #fff;
-          transition: all 0.3s cubic-bezier(.4,2,.6,1);
-          cursor: pointer;
-          box-shadow: none;
-        }
-        .button-navbar-center {
-          background: #fff;
-          color: #4f8cff;
-          box-shadow: 0 2px 8px 0 rgba(76, 110, 245, 0.15);
-          border: 2px solid #7c3aed22;
-        }
-        .button-navbar:hover {
-          transform: translateY(-4px) scale(1.08);
-          background: rgba(255,255,255,0.08);
-        }
-        .button-navbar-active {
-          background: rgba(255,255,255,0.18);
-          color: #fff;
-        }
-        .icon-navbar {
-          font-size: 22px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        @media (max-width: 500px) {
-          .button-container-navbar { width: 98vw; min-width: 0; }
-        }
-      `}</style>
-    </motion.nav>
+    </motion.div>
   );
 }
