@@ -1,11 +1,17 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "index.html",
+      "use": "@vercel/static-build"
     }
-  ]
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist"
 }
