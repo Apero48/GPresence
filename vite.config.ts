@@ -71,5 +71,5 @@ window.addEventListener('message', async (message) => {
   build: {
     outDir: 'dist',
   },
-  base: '/',
+  base: './',
 }));
