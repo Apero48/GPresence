@@ -1,21 +1,11 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "dist/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/dist/index.html"
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/api/convex"
+      "destination": "/index.html"
     }
   ]
 }
