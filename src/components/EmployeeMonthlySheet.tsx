@@ -75,36 +75,33 @@ export default function EmployeeMonthlySheet() {
   if (!employee) return <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
 
   return (
-    <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow p-8 mt-8">
+    <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow p-4 sm:p-6 md:p-8 mt-4 sm:mt-6 md:mt-8">
       <div className="flex flex-col gap-4 mb-6">
         {/* Bouton retour style dégradé + ombre */}
         <button
           onClick={() => {
-            // Si la page a été ouverte depuis la navigation interne, revenir en arrière
-            if (location.key !== 'default') {
-              navigate(-1);
-            } else {
-              // Sinon, forcer la vue embarquée "personnel" (LegacyApp)
-              navigate('/', { state: { view: 'personnel' } });
-              // Ouverture directe : fallback sur la racine avec vue personnel
-            }
+            // Utilisation de navigate avec state pour forcer la vue 'personnel'
+            navigate('/', { 
+              state: { view: 'personnel' },
+              replace: true  // Empêche d'ajouter une nouvelle entrée dans l'historique
+            });
           }}
-          className="w-fit px-6 py-2 rounded-2xl font-bold text-lg shadow-lg transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-fit px-4 sm:px-6 py-2 rounded-2xl font-bold text-base sm:text-lg shadow-lg transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400"
           style={{
             background: 'linear-gradient(120deg, #99f6e4 0%, #60a5fa 100%)',
             color: '#111',
             boxShadow: '0 4px 24px 0 rgba(80,180,255,0.10)'
           }}
         >
-          ← Retour à la Liste du personnel
+          ← Retour
         </button>
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-200 to-blue-400 flex items-center justify-center text-2xl font-bold shadow-md">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-teal-200 to-blue-400 flex items-center justify-center text-xl sm:text-2xl font-bold shadow-md">
             {(employee.firstName?.[0]?.toUpperCase() || "") + (employee.lastName?.[0]?.toUpperCase() || "")}
           </div>
-          <div>
-            <div className="text-2xl font-bold text-gray-900">{employee.firstName} {employee.lastName}</div>
-            <div className="text-gray-500">{employee.role === 'admin' ? 'Administrateur' : 'Employé'}</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{employee.firstName} {employee.lastName}</div>
+            <div className="text-gray-500 text-sm sm:text-base">{employee.role === 'admin' ? 'Administrateur' : 'Employé'}</div>
           </div>
           <div className="ml-auto flex flex-col items-end">
             <div className="flex items-center gap-2 mb-2">

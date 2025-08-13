@@ -9,7 +9,7 @@ import { EmployeeView } from "./components/EmployeeView";
 import { QRScanner } from "./components/QRScanner";
 import { AttendanceConfirmation } from "./components/AttendanceConfirmation";
 import OfflineNotice from "./components/OfflineNotice";
-import ModernBottomNavBar from "./components/ModernBottomNavBar";
+import ModernNavBar from "./components/ModernNavBar";
 import { AttendanceHistory } from "./components/AttendanceHistory";
 import { EmployeeManagement } from "./components/EmployeeManagement";
 import { QRCodeGenerator } from "./components/QRCodeGenerator";
@@ -123,7 +123,7 @@ function LegacyApp() {
         </Unauthenticated>
       </main>
       {employee && (
-        <ModernBottomNavBar
+        <ModernNavBar
           role={employee.role}
           currentView={currentView}
           setCurrentView={(view: string) => setCurrentView(view as typeof currentView)}
