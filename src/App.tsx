@@ -9,7 +9,7 @@ import { EmployeeView } from "./components/EmployeeView";
 import { QRScanner } from "./components/QRScanner";
 import { AttendanceConfirmation } from "./components/AttendanceConfirmation";
 import OfflineNotice from "./components/OfflineNotice";
-import ModernNavBar from "./components/ModernNavBar";
+import ModernNavBar from "./components/ModernNavbar";
 import { AttendanceHistory } from "./components/AttendanceHistory";
 import { EmployeeManagement } from "./components/EmployeeManagement";
 import { QRCodeGenerator } from "./components/QRCodeGenerator";
