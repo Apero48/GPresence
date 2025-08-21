@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
+import QRCodePdfButton from "./admin/QRCodePdfButton";
 
 export function QRCodeGenerator() {
   const [expiresInHours, setExpiresInHours] = useState<number>(24);
@@ -36,37 +37,55 @@ export function QRCodeGenerator() {
     link.click();
   };
 
-  const printQR = () => {
+  const printQR = async () => {
     if (!activeQRCode) return;
-    
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>QR Code Pointage</title>
-          <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-            .qr-container { border: 2px solid #000; padding: 20px; margin: 20px auto; width: 300px; }
-            .qr-placeholder { width: 200px; height: 200px; border: 1px solid #ccc; margin: 0 auto 20px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; }
-            .info { margin: 10px 0; }
-          </style>
-        </head>
-        <body>
-          <h1>QR Code Pointage</h1>
-          <div class="qr-container">
-            <div class="qr-placeholder" id="qr-print"></div>
-            <div class="info"><strong>Code:</strong> ${activeQRCode.code}</div>
-            <div class="info"><strong>URL:</strong> ${qrValue}</div>
-            <div class="info"><strong>Généré le:</strong> ${new Date().toLocaleDateString('fr-FR')}</div>
-          </div>
-          <p>Scannez ce QR code pour pointer votre présence</p>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    try {
+      const QR = await import('qrcode');
+      // Génère une image haute résolution pour une impression nette
+      const dataUrl: string = await QR.toDataURL(qrValue, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 1024, // haute résolution pour l'impression
+        color: { dark: '#000000', light: '#ffffff' },
+      } as any);
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return;
+
+      const html = `
+        <html>
+          <head>
+            <title>QR Code Pointage</title>
+            <style>
+              @page { size: A4; margin: 16mm; }
+              body { font-family: Arial, sans-serif; text-align: center; }
+              .wrapper { display: flex; flex-direction: column; align-items: center; }
+              h1 { margin: 0 0 8mm; font-size: 18pt; }
+              .meta { margin-top: 6mm; font-size: 11pt; }
+              img.qr { width: 120mm; height: 120mm; object-fit: contain; }
+            </style>
+          </head>
+          <body>
+            <div class="wrapper">
+              <h1>QR Code Pointage</h1>
+              <img class="qr" src="${dataUrl}" alt="QR Code" />
+              <div class="meta"><strong>Code:</strong> ${activeQRCode.code}</div>
+              <div class="meta"><strong>Généré le:</strong> ${new Date().toLocaleDateString('fr-FR')}</div>
+            </div>
+            <script>
+              window.onload = function() {
+                setTimeout(function(){ window.print(); window.close(); }, 300);
+              };
+            </script>
+          </body>
+        </html>`;
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } catch (e) {
+      console.error('Erreur impression QR:', e);
+      alert("Impossible d'imprimer correctement le QR. Essayez l'export PDF.");
+    }
   };
 
   return (
@@ -125,12 +144,14 @@ export function QRCodeGenerator() {
               </div>
               
               <div className="space-y-2">
-                <button
-                  onClick={downloadQR}
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                >
-                  📥 Télécharger PNG
-                </button>
+                <QRCodePdfButton
+                  title="QR de Pointage"
+                  subtitle={`Code: ${activeQRCode.code}`}
+                  qrText={qrValue}
+                  fileName={`qr-${activeQRCode.code}`}
+                  buttonText="📄 Télécharger PDF"
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-center"
+                />
                 <button
                   onClick={printQR}
                   className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
