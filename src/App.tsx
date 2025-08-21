@@ -50,11 +50,12 @@ function LegacyApp() {
 
   // Effet pour créer automatiquement le profil admin si besoin
   useEffect(() => {
-    if (employee === null) {
+    if (employee === null && isAuthenticated) {
       // Si l'utilisateur est authentifié mais n'a pas de profil employé, on tente de créer le profil admin
-      initializeAdmin();
+      // On ignore les erreurs d'auth en dev pour éviter les crashs UI
+      initializeAdmin().catch(() => {});
     }
-  }, [employee, initializeAdmin]);
+  }, [employee, isAuthenticated, initializeAdmin]);
 
   // Effet pour associer automatiquement le userId à l'employé lors de la première connexion
   useEffect(() => {

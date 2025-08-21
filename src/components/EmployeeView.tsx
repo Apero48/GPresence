@@ -14,7 +14,11 @@ export function EmployeeView({ setCurrentView }: {
   const recordAttendance = useMutation(api.attendance.recordAttendance);
   const [now, setNow] = useState(Date.now());
 
-  if (!employee || !myAttendance) {
+  // Safe fallback: during Convex revalidation, queries may be undefined
+  const myAtt = myAttendance ?? [];
+
+  // Only show spinner while employee is loading; do not gate on myAttendance to keep hook order stable
+  if (employee === undefined) {
     return (
       <div className="flex justify-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -28,7 +32,7 @@ export function EmployeeView({ setCurrentView }: {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const todayAttendance = myAttendance.filter(record => 
+  const todayAttendance = myAtt.filter(record => 
     record.timestamp >= today.getTime() && record.timestamp < tomorrow.getTime()
   );
 
@@ -183,7 +187,7 @@ export function EmployeeView({ setCurrentView }: {
             <div className="text-center">
               <span className="text-3xl mb-2 block">📊</span>
               <p className="font-medium text-gray-600">Statistiques</p>
-              <p className="text-sm text-gray-500">{myAttendance.length} pointages</p>
+              <p className="text-sm text-gray-500">{myAtt.length} pointages</p>
             </div>
           </div>
         </div>
@@ -192,11 +196,11 @@ export function EmployeeView({ setCurrentView }: {
       {/* Today's Activity */}
       <div className="bg-white rounded-lg shadow border p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Activité d'aujourd'hui</h2>
-        {todayAttendance.length === 0 ? (
+        {myAtt.length === 0 ? (
           <p className="text-gray-500 text-center py-4">Aucune activité aujourd'hui</p>
         ) : (
           <div className="space-y-3">
-            {todayAttendance.map((record) => (
+            {myAtt.map((record) => (
               <div key={record._id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
                 <div className="flex items-center">
                   <span className="text-2xl mr-3">
@@ -229,11 +233,11 @@ export function EmployeeView({ setCurrentView }: {
       {/* Recent History */}
       <div className="bg-white rounded-lg shadow border p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Historique récent</h2>
-        {myAttendance.length === 0 ? (
+        {myAtt.length === 0 ? (
           <p className="text-gray-500 text-center py-4">Aucun historique</p>
         ) : (
           <div className="space-y-3">
-            {myAttendance.slice(0, 10).map((record) => (
+            {myAtt.slice(0, 10).map((record) => (
               <div key={record._id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
                 <div className="flex items-center">
                   <span className="text-xl mr-3">
