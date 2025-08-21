@@ -18,6 +18,15 @@ export const recordAttendance = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // Load company settings for rules (lateness cutoff, break duration/tolerance)
+    const settings =
+      (await ctx.db.query("companySettings").first()) ?? {
+        workingHours: { start: "08:00", end: "19:00" },
+        toleranceMinutes: 16,
+        break: { start: "12:00", durationMinutes: 60, toleranceMinutes: 15 },
+        requireLocation: false,
+      };
+
     const employee = await ctx.db
       .query("employees")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -73,10 +82,14 @@ export const recordAttendance = mutation({
 
     // 1) First scan of the day => arrival with lateness
     if (count === 0) {
-      const startHour = 8;
-      const startMinuteTolerance = 15; // inclusive (<= 08:15:59 ok)
+      // Arrivée à l'heure si <= 08:15 (par défaut) ; en retard à partir de 08:16
+      // Utilise toleranceMinutes provenant des settings
+      const [hStr, mStr] = settings.workingHours.start.split(":");
+      const startHour = parseInt(hStr || "8", 10);
+      const startMinute = parseInt(mStr || "0", 10);
+      const tol = Math.max(0, (settings.toleranceMinutes ?? 16) - 1); // ex: 16 -> autorise jusqu'à 08:15:59
       const cutoff = new Date(now);
-      cutoff.setHours(startHour, startMinuteTolerance, 59, 999);
+      cutoff.setHours(startHour, startMinute + tol, 59, 999);
       const isLate = now.getTime() > cutoff.getTime();
 
       return await insertAndReturn({
@@ -116,7 +129,9 @@ export const recordAttendance = mutation({
       if (args.midType === "pause" && direction === "end" && lastMid) {
         const durationMs = now.getTime() - lastMid.timestamp;
         const minutes = Math.round(durationMs / 60000);
-        const exceeded = minutes > 60;
+        const planned = settings.break?.durationMinutes ?? 60;
+        const tol = settings.break?.toleranceMinutes ?? 0;
+        const exceeded = minutes > planned + tol;
         return await insertAndReturn(
           {
             employeeId: employee._id,
@@ -452,6 +467,15 @@ export const getMyWeekStats = query({
 
     if (!employee) throw new Error("Employee not found");
 
+    // Load company settings for rules (lateness cutoff, break duration/tolerance)
+    const settings =
+      (await ctx.db.query("companySettings").first()) ?? {
+        workingHours: { start: "08:00", end: "19:00" },
+        toleranceMinutes: 16,
+        break: { start: "12:00", durationMinutes: 60, toleranceMinutes: 15 },
+        requireLocation: false,
+      };
+
     const now = new Date();
     const end = new Date(now);
     end.setHours(23, 59, 59, 999);
@@ -511,10 +535,13 @@ export const getMyWeekStats = query({
 
       // late
       if (firstArrival) {
-        // default threshold 08:16
         const d = new Date(firstArrival.timestamp);
         const threshold = new Date(d);
-        threshold.setHours(8, 16, 0, 0);
+        const [hStr, mStr] = settings.workingHours.start.split(":");
+        const startHour = parseInt(hStr || "8", 10);
+        const startMinute = parseInt(mStr || "0", 10);
+        const tol = Math.max(0, (settings.toleranceMinutes ?? 16) - 1);
+        threshold.setHours(startHour, startMinute + tol, 59, 999);
         if (firstArrival.timestamp > threshold.getTime()) lateCount += 1;
       }
     }

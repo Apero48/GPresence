@@ -11,6 +11,7 @@ export const getSettings = query({
       settings ?? {
         workingHours: { start: "08:00", end: "19:00" },
         toleranceMinutes: 16, // late from 08:16
+        break: { start: "12:00", durationMinutes: 60, toleranceMinutes: 15 },
         requireLocation: false,
         _id: undefined,
       }
@@ -22,6 +23,11 @@ export const updateSettings = mutation({
   args: {
     workingHours: v.object({ start: v.string(), end: v.string() }),
     toleranceMinutes: v.number(),
+    break: v.object({
+      start: v.string(),
+      durationMinutes: v.number(),
+      toleranceMinutes: v.number(),
+    }),
     requireLocation: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -42,6 +48,7 @@ export const updateSettings = mutation({
       await ctx.db.patch(existing._id, {
         workingHours: args.workingHours,
         toleranceMinutes: args.toleranceMinutes,
+        break: args.break,
         requireLocation: args.requireLocation,
       });
       return existing._id;
@@ -49,6 +56,7 @@ export const updateSettings = mutation({
       return await ctx.db.insert("companySettings", {
         workingHours: args.workingHours,
         toleranceMinutes: args.toleranceMinutes,
+        break: args.break,
         requireLocation: args.requireLocation,
       });
     }

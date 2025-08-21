@@ -60,6 +60,11 @@ const applicationTables = {
       end: v.string(),
     }),
     toleranceMinutes: v.number(),
+    break: v.optional(v.object({
+      start: v.string(), // e.g. "12:00"
+      durationMinutes: v.number(), // e.g. 60
+      toleranceMinutes: v.number(), // e.g. 15
+    })),
     requireLocation: v.boolean(),
   }),
 };
