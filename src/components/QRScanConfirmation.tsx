@@ -5,9 +5,10 @@ import { fr } from "date-fns/locale";
 
 interface QRScanConfirmationProps {
   employeeName: string;
-  action: "arrival" | "departure";
+  action: "arrival" | "mid" | "departure";
   timestamp: Date;
   location?: { lat: number; lng: number };
+  midType?: "pause" | "intervention" | "commission";
   onClose?: () => void;
 }
 
@@ -16,6 +17,7 @@ const QRScanConfirmation = ({
   action,
   timestamp,
   location,
+  midType,
   onClose,
 }: QRScanConfirmationProps) => {
   React.useEffect(() => {
@@ -25,9 +27,14 @@ const QRScanConfirmation = ({
     return () => clearTimeout(timer);
   }, [onClose]);
 
-  const actionText = action === "arrival" ? "Arrivée" : "Départ";
-  const actionEmoji = action === "arrival" ? "🟢" : "🔴";
-  const bgColor = action === "arrival" ? "bg-green-500" : "bg-blue-600";
+  const actionText = action === "arrival" ? "Arrivée"
+                    : action === "departure" ? "Départ"
+                    : midType === "pause" ? "Pause"
+                    : midType === "intervention" ? "Intervention"
+                    : midType === "commission" ? "Commission"
+                    : "Mouvement";
+  const actionEmoji = action === "arrival" ? "🟢" : action === "departure" ? "🔴" : "🟡";
+  const bgColor = action === "arrival" ? "bg-green-500" : action === "departure" ? "bg-blue-600" : "bg-amber-500";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
@@ -41,7 +48,7 @@ const QRScanConfirmation = ({
           <div className="space-y-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                {actionEmoji} {actionText} Confirmée
+                {actionEmoji} {actionText} Confirmé{action === 'arrival' ? 'e' : ''}
               </h2>
               <p className="text-lg font-medium text-gray-500">
                 {employeeName}
@@ -74,4 +81,4 @@ const QRScanConfirmation = ({
   );
 };
 
-export default QRScanConfirmation; 
+export default QRScanConfirmation;

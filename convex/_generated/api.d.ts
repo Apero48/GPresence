@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as attendance from "../attendance.js";
 import type * as auth from "../auth.js";
+import type * as companySettings from "../companySettings.js";
 import type * as employees from "../employees.js";
 import type * as http from "../http.js";
 import type * as qrCodes from "../qrCodes.js";
@@ -31,6 +32,7 @@ import type * as router from "../router.js";
 declare const fullApi: ApiFromModules<{
   attendance: typeof attendance;
   auth: typeof auth;
+  companySettings: typeof companySettings;
   employees: typeof employees;
   http: typeof http;
   qrCodes: typeof qrCodes;

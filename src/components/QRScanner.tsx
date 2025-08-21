@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { toast } from "sonner";
+import notify from '../utils/notify';
 import EmployeeConfirmation from "./EmployeeConfirmation";
 import { Html5Qrcode } from "html5-qrcode";
 
-export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentView: (view: 'dashboard' | 'employee' | 'scanner' | 'confirmation' | 'personnel') => void; setAttendanceRecord: (record: any) => void; }) {
+export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentView: (view: 'dashboard' | 'employee' | 'scanner' | 'confirmation') => void; setAttendanceRecord: (record: any) => void; }) {
   const [isScanning, setIsScanning] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<string>("");
@@ -14,8 +14,18 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerId = "qr-scanner-html5";
   const scannerContainerRef = useRef<HTMLDivElement>(null);
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [restarting, setRestarting] = useState(false);
 
   const recordAttendance = useMutation(api.attendance.recordAttendance);
+
+  // Prompt for choice (2e+ scan): pause/intervention/commission/departure
+  const [choicePrompt, setChoicePrompt] = useState<null | {
+    qrCodeId: string;
+    options: Array<'pause' | 'intervention' | 'commission' | 'departure'>;
+    employeeName: string;
+  }>(null);
 
   // Démarre la caméra et le scanner
   const startQRScanner = async () => {
@@ -75,7 +85,7 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
       } catch (e) {
         let msg = "❌ Impossible d'accéder à la caméra : ";
         if (typeof e === "object" && e && "message" in e) {
-          msg += e.message;
+          msg += (e as any).message;
         } else {
           msg += String(e);
         }
@@ -87,6 +97,8 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
         }
         setStatus(msg);
         setIsScanning(false);
+        setCameraError(msg);
+        notify.error('Accès caméra refusé ou indisponible', { description: msg });
       }
     };
 
@@ -111,7 +123,7 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
               } catch {}
             }
             localStorage.removeItem("offline_attendance");
-            toast.success("Pointages hors-ligne synchronisés !");
+            notify.success("Pointages hors-ligne synchronisés !");
           }
         }
       }
@@ -123,6 +135,34 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
       window.removeEventListener("online", syncOfflineAttendances);
     };
   }, [recordAttendance]);
+
+  // Listen to online/offline for inline banner
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  const restartScanner = async () => {
+    try {
+      setRestarting(true);
+      setCameraError(null);
+      // Re-trigger existing init logic by unmounting/mounting or by your init fn if available
+      // If you have a start() function, call it here; otherwise toggle a key state
+      // This fallback shows feedback only
+      await new Promise((r) => setTimeout(r, 500));
+      notify.success('Scanner réinitialisé');
+    } catch (e) {
+      notify.error('Impossible de réinitialiser la caméra');
+    } finally {
+      setRestarting(false);
+    }
+  };
 
   // Action à effectuer après scan
   const onScan = async (result: string) => {
@@ -143,32 +183,79 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
         location: undefined,
         onDone: () => {
           setShowConfirmation(false);
-          setCurrentView('personnel');
+          setCurrentView('employee');
         },
         offline: true,
       });
       setIsProcessing(false);
       return;
     }
-    // Supprime la redirection automatique vers une URL
-    // Le scan déclenche toujours le pointage
     try {
-      const attendance = await recordAttendance({ qrCodeId: result });
-      setAttendanceRecord(attendance);
+      const res: any = await recordAttendance({ qrCodeId: result });
+      // If backend asks for a choice on 2e+ scan
+      if (res && (res.requiresChoice || res.requiresMidType)) {
+        const options = (res.options as Array<'pause' | 'intervention' | 'commission' | 'departure'>) || ['pause','intervention','commission','departure'];
+        setChoicePrompt({
+          qrCodeId: result,
+          options,
+          employeeName: res.employee ? `${res.employee.firstName} ${res.employee.lastName}` : 'Employé',
+        });
+        setStatus("Choisissez: pause / intervention / commission / départ");
+        return; // wait for user choice
+      }
+
+      setAttendanceRecord(res);
       setStatus("✅ Pointage enregistré !");
+      if (res?.pauseExceeded) {
+        notify.warning(`Pause ${res.pauseDurationMinutes} min (> 60 min)`);
+      }
       setShowConfirmation(true);
       setConfirmationProps({
-        employeeName: attendance?.employee ? attendance.employee.firstName + ' ' + attendance.employee.lastName : "Employé",
-        action: attendance?.type === "departure" ? "departure" : "arrival",
-        timestamp: attendance?.timestamp ? new Date(attendance.timestamp) : new Date(),
-        location: attendance?.location ? { lat: attendance.location.latitude, lng: attendance.location.longitude } : undefined,
+        employeeName: res?.employee ? res.employee.firstName + ' ' + res.employee.lastName : "Employé",
+        action: res?.type ?? "arrival",
+        midType: res?.midType,
+        timestamp: res?.timestamp ? new Date(res.timestamp) : new Date(),
+        location: res?.location ? { lat: res.location.latitude, lng: res.location.longitude } : undefined,
         onDone: () => {
           setShowConfirmation(false);
-          setCurrentView('personnel');
+          setCurrentView('employee');
         },
       });
     } catch (error) {
       setStatus("❌ Erreur lors du pointage");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const onChooseOption = async (choice: 'pause' | 'intervention' | 'commission' | 'departure') => {
+    if (!choicePrompt) return;
+    setIsProcessing(true);
+    try {
+      const args = choice === 'departure'
+        ? { qrCodeId: choicePrompt.qrCodeId, departure: true as const }
+        : { qrCodeId: choicePrompt.qrCodeId, midType: choice };
+      const res: any = await recordAttendance(args as any);
+      setChoicePrompt(null);
+      setAttendanceRecord(res);
+      setStatus("✅ Pointage enregistré !");
+      if (res?.pauseExceeded) {
+        notify.warning(`Pause ${res.pauseDurationMinutes} min (> 60 min)`);
+      }
+      setShowConfirmation(true);
+      setConfirmationProps({
+        employeeName: res?.employee ? res.employee.firstName + ' ' + res.employee.lastName : choicePrompt.employeeName,
+        action: res?.type ?? (choice === 'departure' ? 'departure' : 'mid'),
+        midType: res?.midType ?? (choice !== 'departure' ? choice : undefined),
+        timestamp: res?.timestamp ? new Date(res.timestamp) : new Date(),
+        location: res?.location ? { lat: res.location.latitude, lng: res.location.longitude } : undefined,
+        onDone: () => {
+          setShowConfirmation(false);
+          setCurrentView('employee');
+        },
+      });
+    } catch (e) {
+      notify.error("Impossible d'enregistrer le choix. Réessayez.");
     } finally {
       setIsProcessing(false);
     }
@@ -216,9 +303,55 @@ export function QRScanner({ setCurrentView, setAttendanceRecord }: { setCurrentV
           <p className="mt-4 text-center text-gray-700">
             {status || "Scannez le QR code dans le cadre"}
           </p>
+          {!isOnline && (
+            <div className="mb-3 p-3 rounded border border-yellow-300 bg-yellow-50 text-yellow-800 text-sm">
+              Hors ligne — le scan sera mis en file et synchronisé quand la connexion reviendra.
+            </div>
+          )}
+          {cameraError && (
+            <div className="mt-3 p-3 rounded border border-red-300 bg-red-50 text-red-800 text-sm">
+              <p className="font-medium mb-1">Problème d’accès caméra</p>
+              <ul className="list-disc ml-5 space-y-1">
+                <li>Vérifiez que le navigateur a l’autorisation d’utiliser la caméra.</li>
+                <li>Fermez les autres applications utilisant la caméra.</li>
+                <li>Essayez d’actualiser la page ou de changer d’appareil photo.</li>
+              </ul>
+              <p className="mt-2 text-xs text-red-700">Détails: {cameraError}</p>
+            </div>
+          )}
+          <div className="mt-4 flex items-center gap-3">
+            <button onClick={() => setCurrentView('employee')} className="px-4 py-2 rounded border">Retour</button>
+            <button onClick={restartScanner} disabled={restarting} className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50">
+              {restarting ? 'Redémarrage…' : 'Réessayer'}
+            </button>
+          </div>
         </div>
       )}
       
+      {/* Choice prompt (2e+ scan) */}
+      {choicePrompt && !showConfirmation && (
+        <div className="w-full max-w-md mx-auto mt-6">
+          <div className="bg-white border rounded-lg shadow p-4 space-y-3">
+            <p className="text-center font-medium">Sélectionnez une option</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {choicePrompt.options.map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => onChooseOption(opt)}
+                  className="px-3 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                  disabled={isProcessing}
+                >
+                  {opt === 'pause' ? 'Pause'
+                   : opt === 'intervention' ? 'Intervention'
+                   : opt === 'commission' ? 'Commission'
+                   : 'Départ'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showConfirmation && confirmationProps && (
         <div className="w-full max-w-md mx-auto">
           <EmployeeConfirmation {...confirmationProps} />

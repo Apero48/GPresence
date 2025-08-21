@@ -3,13 +3,14 @@ import React, { useState } from "react";
 
 interface EmployeeConfirmationProps {
   employeeName: string;
-  action: "arrival" | "departure";
+  action: "arrival" | "mid" | "departure";
   timestamp: Date;
   location?: { lat: number; lng: number };
+  midType?: "pause" | "intervention" | "commission";
   onDone: () => void;
 }
 
-const EmployeeConfirmation = ({ employeeName, action, timestamp, location, onDone }: EmployeeConfirmationProps) => {
+const EmployeeConfirmation = ({ employeeName, action, timestamp, location, midType, onDone }: EmployeeConfirmationProps) => {
   const [visible, setVisible] = useState(true);
 
   React.useEffect(() => {
@@ -29,9 +30,10 @@ const EmployeeConfirmation = ({ employeeName, action, timestamp, location, onDon
         action={action}
         timestamp={timestamp}
         location={location}
+        midType={midType}
       />
     </div>
   );
 };
 
-export default EmployeeConfirmation; 
+export default EmployeeConfirmation;

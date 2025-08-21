@@ -17,13 +17,29 @@ const applicationTables = {
 
   attendance: defineTable({
     employeeId: v.id("employees"),
-    type: v.union(v.literal("arrival"), v.literal("departure")),
+    type: v.union(
+      v.literal("arrival"),
+      v.literal("mid"),
+      v.literal("departure")
+    ),
     timestamp: v.number(),
     location: v.optional(v.object({
       latitude: v.number(),
       longitude: v.number(),
     })),
     qrCodeId: v.string(),
+    // Raison du 2e+ scan si type === "mid"
+    midType: v.optional(
+      v.union(
+        v.literal("pause"),
+        v.literal("intervention"),
+        v.literal("commission")
+      )
+    ),
+    // Sens du mouvement mid: début ou fin
+    midDirection: v.optional(v.union(v.literal("start"), v.literal("end"))),
+    // Flag retard au 1er scan
+    isLate: v.optional(v.boolean()),
   })
     .index("by_employee", ["employeeId"])
     .index("by_date", ["timestamp"])

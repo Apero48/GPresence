@@ -64,12 +64,55 @@ export default function EmployeeMonthlySheet() {
     Type: day.arrival && day.departure ? "Présence" : day.arrival && !day.departure ? "Retard" : "Absence"
   }));
 
-  function handleExportExcel() {
-    exportToExcel(exportData, `Feuille-${employee?.firstName || ''}-${employee?.lastName || ''}-${month}.xlsx`);
-  }
-  // PDF export supprimé
-  function handleExportCSV() {
-    exportToCSV(exportData, `Feuille-${employee?.firstName || ''}-${employee?.lastName || ''}-${month}.csv`);
+  function handleExportPDF() {
+    const title = `Feuille mensuelle — ${employee?.firstName || ''} ${employee?.lastName || ''}`.trim();
+    const subtitle = new Date(`${month}-01`).toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+    const total = msToHrsMin(totalWorked);
+    const rowsHtml = exportData.length
+      ? exportData.map((r: any) => `<tr><td>${r['Date']}</td><td>${r["Heure d'arrivée"]}</td><td>${r['Heure de départ']}</td><td>${r['Type']}</td></tr>`).join('')
+      : '<tr><td colspan="4">Aucune donnée pour ce mois.</td></tr>';
+
+    const styles = `
+      <style>
+        *{box-sizing:border-box} body{font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;color:#111827;margin:0;padding:24px}
+        .header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px}
+        .title{font-size:20px;font-weight:700}
+        .subtitle{color:#374151;font-size:16px;font-weight:700}
+        .centerKpi{margin:8px 0 16px; text-align:center; font-size:18px; color:#111827}
+        table{width:100%;border-collapse:collapse}
+        th,td{border-bottom:1px solid #E5E7EB;padding:8px;text-align:left;font-size:12px}
+        th{color:#374151;background:#F9FAFB}
+      </style>
+    `;
+    const html = `
+      <html>
+      <head><meta charSet="utf-8"/><title>${title}</title>${styles}</head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="title">${title}</div>
+            <div class="subtitle">Période : ${subtitle}</div>
+          </div>
+          <div class="subtitle">Généré le : ${new Date().toLocaleString('fr-FR')}</div>
+        </div>
+        <div class="centerKpi">Heures totales travaillées : <strong>${total}</strong></div>
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Heure d'arrivée</th><th>Heure de départ</th><th>Type</th></tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </body>
+      </html>`;
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    w.print();
   }
 
   if (!employee) return <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
@@ -80,11 +123,8 @@ export default function EmployeeMonthlySheet() {
         {/* Bouton retour style dégradé + ombre */}
         <button
           onClick={() => {
-            // Utilisation de navigate avec state pour forcer la vue 'personnel'
-            navigate('/', { 
-              state: { view: 'personnel' },
-              replace: true  // Empêche d'ajouter une nouvelle entrée dans l'historique
-            });
+            // Retour explicite vers la liste du personnel
+            navigate('/?view=personnel', { replace: true });
           }}
           className="w-fit px-4 sm:px-6 py-2 rounded-2xl font-bold text-base sm:text-lg shadow-lg transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400"
           style={{
@@ -161,16 +201,10 @@ export default function EmployeeMonthlySheet() {
       </div>
       <div className="flex flex-wrap gap-3 justify-end mt-6">
         <button
-          onClick={handleExportExcel}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2"
+          onClick={handleExportPDF}
+          className="px-4 py-2 bg-rose-600 text-white rounded-lg font-semibold hover:bg-rose-700 transition flex items-center gap-2"
         >
-          <span>📊</span> Exporter Excel
-        </button>
-        <button
-          onClick={handleExportCSV}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center gap-2"
-        >
-          <span>🗂️</span> Exporter CSV
+          <span>🖨️</span> Exporter PDF
         </button>
       </div>
     </div>

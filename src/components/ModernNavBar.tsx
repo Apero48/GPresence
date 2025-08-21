@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 
-type ViewType = 'dashboard' | 'employes' | 'qrcode' | 'personnel' | 'history' | 'scanner';
+type ViewType = 'dashboard' | 'employes' | 'qrcode' | 'personnel' | 'history' | 'scanner' | 'employee';
 
 interface NavItem {
   key: ViewType;
@@ -41,6 +41,7 @@ export default function ModernNavBar({ role, currentView, setCurrentView }: NavB
     { key: 'dashboard', icon: '📊', label: 'Accueil' },
     { key: 'scanner', icon: '📱', label: 'Scanner', isCenter: true },
     { key: 'history', icon: '📋', label: 'Historique' },
+    { key: 'employee', icon: '👥', label: 'Employé' },
   ];
   
   const navItems = role === 'admin' ? adminNav : employeeNav;
