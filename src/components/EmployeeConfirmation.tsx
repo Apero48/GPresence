@@ -19,7 +19,7 @@ const EmployeeConfirmation = ({ employeeName, action, timestamp, location, midTy
       setTimeout(() => {
         onDone();
       }, 600); // temps pour l'animation fade-out
-    }, 9000); // 9 secondes
+    }, 8000); // 8 secondes
     return () => clearTimeout(timer);
   }, [onDone]);
 

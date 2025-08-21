@@ -1,3 +1,5 @@
+import React from 'react';
+
 export function AttendanceConfirmation({ 
   attendanceRecord, 
   setCurrentView 
@@ -19,25 +21,50 @@ export function AttendanceConfirmation({
     );
   }
 
-  const isArrival = attendanceRecord.type === 'arrival';
-  const timestamp = new Date(attendanceRecord.timestamp);
+  // Auto-retour vers l'accueil après 8s
+  React.useEffect(() => {
+    const t = setTimeout(() => setCurrentView('employee'), 8000);
+    return () => clearTimeout(t);
+  }, [setCurrentView]);
+
+  const type: 'arrival' | 'mid' | 'departure' = attendanceRecord.type;
+  const midType: 'pause' | 'intervention' | 'commission' | undefined = attendanceRecord.midType;
+  const isArrival = type === 'arrival';
+  const isDeparture = type === 'departure';
+  const isMid = type === 'mid';
+  const timestamp = new Date(typeof attendanceRecord.timestamp === 'number' || typeof attendanceRecord.timestamp === 'string' ? attendanceRecord.timestamp : Date.now());
+
+  const actionLabel = isArrival
+    ? 'Arrivée'
+    : isDeparture
+      ? 'Départ'
+      : midType === 'pause'
+        ? 'Pause'
+        : midType === 'intervention'
+          ? 'Intervention'
+          : midType === 'commission'
+            ? 'Commission'
+            : 'Mouvement';
+
+  const actionEmoji = isArrival ? '🟢' : isDeparture ? '🔴' : '🟡';
+  const badgeClass = isArrival
+    ? 'bg-green-100 text-green-800'
+    : isDeparture
+      ? 'bg-red-100 text-red-800'
+      : 'bg-amber-100 text-amber-800';
 
   return (
     <div className="max-w-md mx-auto space-y-6">
       {/* Success Animation */}
       <div className="text-center">
         <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4 animate-pulse">
-          <span className="text-4xl">{isArrival ? '🟢' : '🔴'}</span>
+          <span className="text-4xl">{actionEmoji}</span>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
           Pointage enregistré avec succès!
         </h1>
-        <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
-          isArrival 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-red-100 text-red-800'
-        }`}>
-          ✅ {isArrival ? 'Arrivée' : 'Départ'} confirmée
+        <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${badgeClass}`}>
+          ✅ {actionLabel} confirmée
         </div>
       </div>
 
@@ -52,9 +79,7 @@ export function AttendanceConfirmation({
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-gray-600">Type de pointage:</span>
-            <span className="font-medium text-gray-900">
-              {isArrival ? '🟢 Arrivée' : '🔴 Départ'}
-            </span>
+            <span className="font-medium text-gray-900">{actionEmoji} {actionLabel}</span>
           </div>
 
           <div className="flex justify-between items-center">
@@ -82,6 +107,12 @@ export function AttendanceConfirmation({
               <span className="font-medium text-green-600">📍 Vérifiée</span>
             </div>
           )}
+          {attendanceRecord.reason && (
+            <div className="flex justify-between items-start">
+              <span className="text-gray-600 mt-0.5">Raison:</span>
+              <span className="font-medium text-gray-900 text-left whitespace-pre-wrap">{attendanceRecord.reason}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -91,9 +122,7 @@ export function AttendanceConfirmation({
           <span className="text-green-600 text-xl mr-3">✅</span>
           <div>
             <p className="font-medium text-green-800">Pointage enregistré avec succès</p>
-            <p className="text-sm text-green-600">
-              Votre {isArrival ? 'arrivée' : 'départ'} a été enregistré dans le système
-            </p>
+            <p className="text-sm text-green-600">Votre {actionLabel.toLowerCase()} a été enregistré dans le système</p>
           </div>
         </div>
       </div>
