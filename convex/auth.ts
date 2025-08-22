@@ -1,26 +1,21 @@
 import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
-import { query, mutation } from "./_generated/server";
+import { query } from "./_generated/server";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
-  providers: [Password],
-  hooks: {
-    onSignup: async (ctx, user) => {
-      // Créer automatiquement un enregistrement employé pour le nouvel utilisateur
-      const name = user.name || user.email?.split('@')[0] || 'Nouvel employé';
-      const [firstName, ...lastNameParts] = name.split(' ');
-      const lastName = lastNameParts.join(' ') || 'Nom';
-      
-      await ctx.db.insert("employees", {
-        userId: user._id,
-        firstName,
-        lastName,
-        email: user.email || '',
-        role: 'employee', // Par défaut, on met le rôle 'employee'
-        isActive: true
-      });
-    }
-  }
+  providers: [
+    {
+      id: 'password',
+      provider: new Password({
+        // Configuration pour l'inscription
+        signUp: async (email: string, password: string, name?: string) => {
+          // Cette fonction sera appelée lors de l'inscription
+          // Le reste du processus est géré par la mutation createEmployeeOnSignup
+          return { email, name };
+        },
+      }),
+    },
+  ],
 });
 
 export const loggedInUser = query({
