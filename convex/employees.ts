@@ -28,7 +28,7 @@ export const getCurrentEmployee = query({
     // Cherche un employé avec ce userId
     let employee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
     if (employee) return employee;
@@ -66,7 +66,7 @@ export const createEmployee = mutation({
     // Check if current user is admin
     const currentEmployee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
     if (!currentEmployee || currentEmployee.role !== "admin") {
@@ -100,7 +100,7 @@ export const getAllEmployees = query({
 
     const currentEmployee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
     if (!currentEmployee || currentEmployee.role !== "admin") {
@@ -125,7 +125,7 @@ export const updateEmployee = mutation({
 
     const currentEmployee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
     if (!currentEmployee || currentEmployee.role !== "admin") {
@@ -149,7 +149,7 @@ export const initializeAdmin = mutation({
     // Check if employee already exists
     const existingEmployee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
     if (existingEmployee) {
@@ -175,31 +175,36 @@ export const createEmployeeOnSignup = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
-    // Vérifier si un employé avec cet email existe déjà
-    const existingEmployee = await ctx.db
-      .query("employees")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
-      .unique();
+    try {
+      // Vérifier si un employé avec cet email existe déjà
+      const existingEmployee = await ctx.db
+        .query("employees")
+        .withIndex("by_email", (q) => q.eq("email", args.email))
+        .unique();
 
-    if (existingEmployee) {
-      // Mettre à jour l'ID utilisateur si l'employé existe déjà
-      if (!existingEmployee.userId) {
-        await ctx.db.patch(existingEmployee._id, { userId: args.userId });
+      if (existingEmployee) {
+        // Mettre à jour l'ID utilisateur si l'employé existe déjà
+        if (!existingEmployee.userId) {
+          await ctx.db.patch(existingEmployee._id, { userId: args.userId });
+        }
+        return existingEmployee._id;
       }
-      return existingEmployee._id;
-    }
 
-    // Créer un nouvel employé
-    const [firstName, ...lastNameParts] = args.name.split(' ');
-    const lastName = lastNameParts.join(' ') || 'Nouvel employé';
-    
-    return await ctx.db.insert("employees", {
-      userId: args.userId,
-      firstName,
-      lastName,
-      email: args.email,
-      role: 'employee',
-      isActive: true
-    });
+      // Créer un nouvel employé
+      const [firstName, ...lastNameParts] = args.name.split(' ');
+      const lastName = lastNameParts.join(' ') || 'Nouvel employé';
+      
+      return await ctx.db.insert("employees", {
+        userId: args.userId,
+        firstName,
+        lastName,
+        email: args.email,
+        role: 'employee',
+        isActive: true
+      });
+    } catch (error) {
+      console.error("Erreur dans createEmployeeOnSignup:", error);
+      throw error;
+    }
   },
 });

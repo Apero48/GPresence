@@ -36,7 +36,7 @@ export const updateSettings = mutation({
 
     const admin = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
     if (!admin || admin.role !== "admin") {

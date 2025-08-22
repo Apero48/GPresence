@@ -30,18 +30,17 @@ export function SignInForm() {
 
           try {
             if (flow === "signUp") {
-              // Créer le compte utilisateur avec signUp au lieu de signIn
-              const userId = await signIn("signup", { email, password, name });
-              
-              // Créer automatiquement un employé associé
-              await createEmployee({
-                userId,
-                email,
-                name: name || email.split('@')[0]
+              // 1. Créer le compte utilisateur
+              await signIn("password", { 
+                email, 
+                password,
+                name,
+                signUp: true
               });
               
-              // Se connecter après la création du compte
+              // 2. Se connecter automatiquement
               await signIn("password", { email, password });
+              
               toast.success("Compte créé avec succès !");
             } else {
               // Connexion standard
@@ -49,12 +48,14 @@ export function SignInForm() {
             }
           } catch (error: any) {
             console.error("Erreur d'authentification :", error);
-            let errorMessage = 'Identifiants incorrects ou problème de connexion.';
+            let errorMessage = "Erreur lors de la création du compte";
             
             if (error.data?.code === 'UserAlreadyExists') {
-              errorMessage = 'Un compte avec cet email existe déjà.';
+              errorMessage = "Un compte avec cet email existe déjà";
             } else if (error.data?.code === 'InvalidSignup') {
-              errorMessage = 'Impossible de créer le compte. Vérifiez vos informations.';
+              errorMessage = "Informations d'inscription invalides";
+            } else if (error.message) {
+              errorMessage = error.message;
             }
             
             toast.error(errorMessage);

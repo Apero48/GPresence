@@ -12,7 +12,7 @@ export const generateQRCode = mutation({
 
     const employee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
     if (!employee || employee.role !== "admin") {
@@ -52,7 +52,7 @@ export const getActiveQRCode = query({
 
     const employee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
     if (!employee || employee.role !== "admin") {

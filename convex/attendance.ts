@@ -29,7 +29,7 @@ export const recordAttendance = mutation({
 
     const employee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_employee", (q) => q.eq("userId", userId))
       .unique();
 
     if (!employee) throw new Error("Employee not found");
@@ -58,8 +58,7 @@ export const recordAttendance = mutation({
       .withIndex("by_employee_and_date", (q) =>
         q
           .eq("employeeId", employee._id)
-          .gte("timestamp", today.getTime())
-          .lt("timestamp", tomorrow.getTime())
+          .gt("timestamp", today.getTime() - 24 * 60 * 60 * 1000)
       )
       .collect();
 
@@ -179,7 +178,7 @@ export const getMyAttendance = query({
 
     const employee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_employee", (q) => q.eq("userId", userId))
       .unique();
 
     if (!employee) return [];
@@ -209,7 +208,7 @@ export const getMyDaySummary = query({
 
     const employee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_employee", (q) => q.eq("userId", userId))
       .unique();
 
     if (!employee) throw new Error("Employee not found");
@@ -223,7 +222,10 @@ export const getMyDaySummary = query({
     const records = await ctx.db
       .query("attendance")
       .withIndex("by_employee_and_date", (q) =>
-        q.eq("employeeId", employee._id).gte("timestamp", start.getTime()).lt("timestamp", end.getTime())
+        q
+          .eq("employeeId", employee._id)
+          .gt("timestamp", start.getTime())
+          .lt("timestamp", end.getTime())
       )
       .collect();
 
@@ -256,7 +258,7 @@ export const getTodayOverages = query({
 
     const admin = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_employee", (q) => q.eq("userId", userId))
       .unique();
 
     if (!admin || admin.role !== "admin") {
@@ -278,7 +280,10 @@ export const getTodayOverages = query({
       const records = await ctx.db
         .query("attendance")
         .withIndex("by_employee_and_date", (q) =>
-          q.eq("employeeId", emp._id).gte("timestamp", start.getTime()).lt("timestamp", end.getTime())
+          q
+            .eq("employeeId", emp._id)
+            .gt("timestamp", start.getTime())
+            .lt("timestamp", end.getTime())
         )
         .collect();
 
@@ -311,7 +316,7 @@ export const getTodayAttendance = query({
 
     const currentEmployee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_employee", (q) => q.eq("userId", userId))
       .unique();
 
     if (!currentEmployee || currentEmployee.role !== "admin") {
@@ -325,7 +330,11 @@ export const getTodayAttendance = query({
 
     const attendance = await ctx.db
       .query("attendance")
-      .withIndex("by_date", (q) => q.gte("timestamp", today.getTime()).lt("timestamp", tomorrow.getTime()))
+      .withIndex("by_employee_and_date", (q) =>
+        q
+          .gt("timestamp", today.getTime())
+          .lt("timestamp", tomorrow.getTime())
+      )
       .collect();
 
     const attendanceWithEmployees = await Promise.all(
@@ -354,7 +363,7 @@ export const getAttendanceHistory = query({
 
     const currentEmployee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_employee", (q) => q.eq("userId", userId))
       .unique();
 
     if (!currentEmployee || currentEmployee.role !== "admin") {
@@ -410,7 +419,7 @@ export const adminCorrectAttendance = mutation({
 
     const admin = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_employee", (q) => q.eq("userId", userId))
       .unique();
 
     if (!admin || admin.role !== "admin") {
@@ -462,7 +471,7 @@ export const getMyWeekStats = query({
 
     const employee = await ctx.db
       .query("employees")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_employee", (q) => q.eq("userId", userId))
       .unique();
 
     if (!employee) throw new Error("Employee not found");
@@ -488,8 +497,7 @@ export const getMyWeekStats = query({
       .withIndex("by_employee_and_date", (q) =>
         q
           .eq("employeeId", employee._id)
-          .gte("timestamp", start.getTime())
-          .lt("timestamp", end.getTime() + 1)
+          .gt("timestamp", start.getTime())
       )
       .collect();
 
@@ -560,7 +568,7 @@ export const getEmployeeActivity = query({
     // authorize: current user must be admin to view arbitrary employee activity
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    const me = await ctx.db.query("employees").withIndex("by_user", q => q.eq("userId", userId)).unique();
+    const me = await ctx.db.query("employees").withIndex("by_employee", q => q.eq("userId", userId)).unique();
     if (!me || me.role !== "admin") throw new Error("Forbidden");
 
     const records = await ctx.db
@@ -568,8 +576,7 @@ export const getEmployeeActivity = query({
       .withIndex("by_employee_and_date", (q) =>
         q
           .eq("employeeId", args.employeeId)
-          .gte("timestamp", args.start)
-          .lt("timestamp", args.end)
+          .gt("timestamp", args.start)
       )
       .collect();
 
