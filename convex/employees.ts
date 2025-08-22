@@ -167,3 +167,39 @@ export const initializeAdmin = mutation({
     });
   },
 });
+
+export const createEmployeeOnSignup = mutation({
+  args: {
+    userId: v.id("users"),
+    email: v.string(),
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Vérifier si un employé avec cet email existe déjà
+    const existingEmployee = await ctx.db
+      .query("employees")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+
+    if (existingEmployee) {
+      // Mettre à jour l'ID utilisateur si l'employé existe déjà
+      if (!existingEmployee.userId) {
+        await ctx.db.patch(existingEmployee._id, { userId: args.userId });
+      }
+      return existingEmployee._id;
+    }
+
+    // Créer un nouvel employé
+    const [firstName, ...lastNameParts] = args.name.split(' ');
+    const lastName = lastNameParts.join(' ') || 'Nouvel employé';
+    
+    return await ctx.db.insert("employees", {
+      userId: args.userId,
+      firstName,
+      lastName,
+      email: args.email,
+      role: 'employee',
+      isActive: true
+    });
+  },
+});
